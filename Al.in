@@ -1,0 +1,178 @@
+#卸载时间为冲击速度0.5km/s，驰豫10ps 温度300k 加载8ps 卸载50ps
+# ---------- Initialize Simulation ---------------------
+clear
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+atom_modify map array
+# ---------- define variables ---------------------
+variable stemperature equal 300 # temperature in kelvin
+variable alattice equal 4.046 # lattice constant (unit A)
+variable myseed equal 12345 # the value seed for the velocity
+variable xmax equal 205 # size in the x-direction
+variable ymax equal 30 # size in the y-direction
+variable zmax equal 30 # size in the z-direction
+variable time_step equal 0.001 # time step in pico seconds
+variable time_eq equal 100 # time steps for the equlibration part
+variable time_shock equal 100 # time steps for the piston
+variable time_unload equal 100 # time steps for the unload
+variable vpiston equal 1.000 # piston speed in (km/s) multiply by ten to obtain (A/ps)
+variable Nevery equal 10 # use input values every this many timesteps
+variable Nrepeat equal 5 # number of times to use input values for calculating
+variable Nfreq equal 100 # calculate averages every this many timesteps
+variable deltax equal 2 # thickness of spatial bins in dim (distance units)
+variable atomrate equal 100 # the rate in timestep that atoms are dump as CFG
+variable tdamp equal "v_time_step*100" # DO NOT CHANGE
+variable pdamp equal "v_time_step*1000" # DO NOT CHANGE
+# DO NOT CHANGE
+variable Up equal "10*v_vpiston"
+timestep ${time_step}
+# ---------- Create Atoms ---------------------
+lattice fcc ${alattice} origin 0.0 0.0 0.0 orient x 1 0 0 orient y 0 1 0 orient z 0 0 1
+# lattice bcc ${alattice} origin 0.0 0.0 0.0 orient x 2 -1 0 orient y 3 6 -5 orient z 1 2 3
+# lattice fcc ${alattice} origin 0.0 0.0 0.0 orient x 1 1 1 orient y 1 -1 0 orient z 1 1 -2
+# the create box commands create_box natoms idname, where natoms is the number of atoms type
+# in the simulation box for this case we only have one type of atoms
+# you can use the command "set" to set the different region of atoms to different Ntype
+# the command "set" is very useful examples: "set group piston type 1"
+# define size of the simulation box
+region sim_box block 0 ${xmax} 0 ${ymax} 0 ${zmax} units lattice
+create_box 2 sim_box
+# define atoms in a small region
+region atom_box block 0 ${xmax} 0 ${ymax} 0 ${zmax}
+create_atoms 1 region atom_box
+# define a group for the atom_box region
+group atom_box region atom_box
+region piston block INF 5 INF INF INF INF
+region bulk block 5 INF INF INF INF INF
+group piston region piston
+group bulk region bulk
+set group piston type 1
+set group bulk type 2
+# ---------- Define Interatomic Potential ---------------------
+pair_style eam/alloy
+pair_coeff * * Al.eam.alloy Al Al
+mass 1 26.98
+mass 2 26.98
+#---------------能量最小化----------------------
+neigh_modify every 1 delay 0 check yes
+min_style cg # 能量最小化模式 
+minimize 1.0e-6 1.0e-6 1000 1000 
+compute myCN bulk cna/atom 1
+compute myKE bulk ke/atom
+compute myPE bulk pe/atom
+compute myCOM bulk com
+compute csp bulk centro/atom 12
+compute peratom bulk stress/atom NULL
+compute vol bulk voronoi/atom
+#compute vol1 bulk voronoi/atom occupation
+compute vx bulk property/atom vx vy vz mass
+compute order bulk hexorder/atom 
+compute q6 bulk orientorder/atom
+compute newT1 bulk temp
+compute newT bulk temp/partial 0 1 1
+# ------------ Equilibrate ---------------------------------------
+reset_timestep 0
+# Now, assign the initial velocities using Maxwell-Boltzmann distribution
+velocity atom_box create ${stemperature} ${myseed} rot yes dist gaussian
+fix equilibration bulk npt temp ${stemperature} ${stemperature} ${tdamp} iso 0 0 ${pdamp} drag 1
+fix_modify equilibration temp newT1
+variable eq1 equal "step"
+variable eq2 equal "pxx/10000"
+variable eq3 equal "pyy/10000"
+variable eq4 equal "pzz/10000"
+variable eq5 equal "lx"
+variable eq6 equal "ly"
+variable eq7 equal "lz"
+variable eq8 equal "temp"
+variable eq9 equal "etotal"
+fix output1 bulk print 20 "${eq1} ${eq2} ${eq3} ${eq4} ${eq5} ${eq6} ${eq7} ${eq8} ${eq9}" file run.out screen no
+thermo 100
+thermo_style custom step pxx pyy pzz lx ly lz temp etotal 
+dump 1 all cfg ${time_eq} fcc.Al.*.cfg mass type xs ys zs 
+run ${time_eq}
+# Store final cell length for strain calculations
+variable tmp equal "lz"
+variable L0 equal ${tmp}
+print "Initial Length, L0: ${L0}"
+unfix equilibration   #取消驰豫
+unfix output1        #消除输出
+undump 1
+# -------------- Shock -------------------------------------------
+change_box all boundary s p p
+reset_timestep 0
+# WE CREATE A PISTON USING A FEW LAYERS OF ATOMS AND THEN WE GIVE IT
+# A CONSTANT POSTIVE SPEED. YOU COULD ALSO USE LAMMPS' FIX WALL/PISTON COMMAND
+fix 1 all nve
+velocity piston set v_Up 0 0 sum no units box
+fix 2 piston setforce 0.0 0.0 0.0
+# WE CREATE BINS IN ORDER TO TRACK THE PASSING OF THE SHOCKWAVE
+compute d1 all chunk/atom bin/1d x lower ${deltax}
+fix density_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d1 density/mass density/number c_vol[1] norm sample file denx.profile 
+variable vy1 atom c_vx[2]*c_vx[2]*1e+4
+variable vz1 atom c_vx[3]*c_vx[3]*1e+4
+variable temp atom (v_vy1+v_vz1)*1.623*1e-3
+variable newT atom c_newT
+compute d2 all chunk/atom bin/1d x lower ${deltax}
+fix temp_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d2 v_temp c_vx[2] c_vx[3] c_vx[4] v_newT c_order[1] c_order[2] file temp.profile
+fix temp1_profile bulk ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_newT file temp1.profile 
+#-bulk1层温度分布
+compute d8 all chunk/atom bin/1d x lower ${deltax}			#对原子进行分类切块
+compute	d9 all temp/chunk d8 temp com yes					#去除chunk质心速度的温度
+fix	tempC bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d8 temp bias d9 file tempC.profile	#每个块的平均温度
+variable meanpress atom -(c_peratom[1]+c_peratom[2]+c_peratom[3])/3/(c_vol[1]+1e-99) #加上1e-99避免分母为0，导致程序运行失败
+variable pressurexx atom -c_peratom[1]/(c_vol[1]+1e-99) #加上1e-99避免分母为0，导致程序运行失败
+compute d3 all chunk/atom bin/1d x lower ${deltax}
+fix pressure_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d3 v_meanpress v_pressurexx v_temp file pressure.profile
+compute d4 all chunk/atom bin/1d x lower ${deltax}
+fix velX_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d4 c_vx[1] v_temp file velocityXcomp.profile
+variable pshear atom 0.5*(c_peratom[1]/10000-0.5*(c_peratom[2]/10000+c_peratom[3]/10000))/(c_vol[1]+1e-99)
+compute d5 all chunk/atom bin/1d x upper 50
+compute	d10 all temp/chunk d5 temp com yes					#去除chunk质心速度的温度
+variable tempC2 atom c_d10
+fix	tempC1 bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d5 temp bias d10 file tempC1.profile	#每个块的平均温度
+fix pvX_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d5 c_vx[1] v_meanpress v_pressurexx v_pshear v_temp v_tempC2 density/mass file pvelocityXcomp.profile
+compute d6 all chunk/atom bin/1d x upper 8
+fix fvX_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d6 c_vx[1] v_temp file fvelocityXcomp.profile
+compute myRDF all rdf 300
+fix rdf_profile all ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_myRDF[*] file tmp.rdf mode vector
+#variable selfRealq6 atom (c_q6[1]*c_q6[1]-c_q6[2]*c_q6[2]+c_q6[3]*c_q6[3]-c_q6[4]*c_q6[4]+c_q6[5]*c_q6[5]-c_q6[6]*c_q6[6]+c_q6[7]*c_q6[7]-c_q6[8]*c_q6[8]+c_q6[9]*c_q6[9]-c_q6[10]*c_q6[10]+c_q6[11]*c_q6[11]-c_q6[12]*c_q6[12])
+#variable selfImagq6 atom (c_q6[13]*c_q6[13]-c_q6[14]*c_q6[14]+c_q6[15]*c_q6[15]-c_q6[16]*c_q6[16]+c_q6[17]*c_q6[17]-c_q6[18]*c_q6[18]+c_q6[19]*c_q6[19]-c_q6[20]*c_q6[20]+c_q6[21]*c_q6[21]-c_q6[22]*c_q6[22]+c_q6[23]*c_q6[23]-c_q6[24]*c_q6[24]+c_q6[25]*c_q6[25]-c_q6[26]*c_q6[26])
+#variable Q6 atom sqrt(4*PI*(v_selfRealq6+v_selfImagq6)/13)
+compute d7 all chunk/atom bin/1d x lower ${deltax}
+fix Q7_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d7 c_q6[1] c_q6[2] c_q6[3] c_q6[4] c_q6[5] file Q7.profile
+variable eq1 equal "step"
+variable eq2 equal "pxx/10000"
+variable eq3 equal "pyy/10000"
+variable eq4 equal "pzz/10000"
+variable eq5 equal "lx"
+variable eq6 equal "ly"
+variable eq7 equal "lz"
+variable eq8 equal "temp"
+variable eq9 equal "etotal"
+variable eq10 equal "c_myCOM[1]"
+variable strain equal "-(lx - v_L0)/v_L0"
+variable shear equal "0.5*(pxx/10000 - 0.5*(pyy/10000 + pzz/10000))"
+variable out11 equal "vol" # Volume Angstroms^3
+variable out12 equal "v_shear"
+variable out13 equal "c_newT"
+fix shock bulk print 20 "${eq1} ${eq2} ${eq3} ${eq4} ${eq5} ${eq6} ${eq7} ${eq8} ${eq9} ${eq10} ${out11} ${out12} ${out13}" file run.${stemperature}K.out screen no
+thermo 100
+thermo_style custom step "v_strain" pxx pyy pzz lx ly lz temp etotal c_myCOM[1] #定义先后顺序
+#Use cfg for AtomEye
+dump 1 all cfg ${atomrate} dump._*.cfg mass type xs ys zs c_myPE c_myKE c_myCN c_csp v_temp v_meanpress v_pressurexx v_pshear c_vx[1] c_vx[2] c_vx[3] c_q6[2] v_newT v_tempC2
+run ${time_shock}
+unfix 2
+
+# -------------- unload -------------------------------------------
+fix 1 all nve#命令执行 NVE 积分更新体系所有粒子位置和速度
+velocity piston set 0 0 0 sum no units box
+run ${time_unload}
+unfix 1
+undump 1
+# SAVE THE DATA OF THE CALCULATION OR ELSE YOU NEED TO START OVER
+write_restart restart.equil
+# SIMULATION DONE
+clear
+print "creo ya esta =)"
