@@ -95,19 +95,13 @@ fix density_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d1 density/mass
 
 variable newT atom c_newT
 
-
-compute d2 all chunk/atom bin/1d x lower ${deltax}
-fix temp_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d2 v_newT file temp.profile
-
 variable meanpress atom -(c_peratom[1]+c_peratom[2]+c_peratom[3])/3/(c_vol[1]+1e-99) #加上1e-99避免分母为0，导致程序运行失败
 variable pressurexx atom -c_peratom[1]/(c_vol[1]+1e-99) #加上1e-99避免分母为0，导致程序运行失败
 variable pshear atom 0.5*(c_peratom[1]/10000-0.5*(c_peratom[2]/10000+c_peratom[3]/10000))/(c_vol[1]+1e-99)
 
 compute d3 all chunk/atom bin/1d x lower ${deltax}
-fix pressure_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d3 v_meanpress v_pressurexx v_pshear v_newT file pressure.profile
+fix pressure_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d3 v_meanpress v_pressurexx v_pshear v_newT c_vx[1] file pressure.profile
 
-compute d4 all chunk/atom bin/1d x lower ${deltax}
-fix velZ_profile bulk ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} d4 c_vx[1] v_newT file velocityZcomp.profile
 
 compute myRDF all rdf 300
 fix rdf_profile all ave/time ${Nevery} ${Nrepeat} ${Nfreq} c_myRDF[*] file tmp.rdf mode vector
