@@ -1,19 +1,22 @@
+#该代码实现对于目标文件夹下pressure.profile的遍历、数据处理及绘图，作者Youlin 
+
 import pandas as pd
-import matplotlib.pyplot as plt
 import os
 
 
 # 变量初始化过程包括路径、变量名
-rootdir=r"D:\Youlin Zhu\2021实验室\分子动力学\数据处理\strainrate"
-list = os.listdir(rootdir)
-for i in range(len(list)):
-    path=os.path.join(rootdir,list[i])
-    input_filename = "pressure.profile" #原始数据文件名
-    mergespace_file = "mergespace.txt"  #合并空格后文件名
-    parse_file = "parse.xlsx"               #分列后文件名
-    fullfill_file="fullfill.xlsx"              #填充后文件名
-    data_processing()
-    drawmap()
+def main():
+    rootdir=r"D:\Youlin Zhu\2021实验室\分子动力学\数据处理\strainrate"
+    list = os.listdir(rootdir)
+ 
+    for i in range(len(list)):
+        global path=os.path.join(rootdir,list[i])
+        global input_filename = "pressure.profile" #原始数据文件名
+        global mergespace_file = "mergespace.txt"  #合并空格后文件名
+        global parse_file = "parse.xlsx"               #分列后文件名
+        global fullfill_file="fullfill.xlsx"              #填充后文件名
+        data_processing()
+       
 
 
 # 将初始文件首行连续空格转化为一个写入一个新文件mergespace_filename
@@ -52,35 +55,10 @@ def fullfill():
                 df.iloc[i,0]=df.iloc[i-1,0]
     df.to_excel(path+fullfill_file,index=False,merge_cell=False)
     
- 
-#绘图代码:某时刻下参数（应力、温度、冲击方向速度）随切片位置分布的曲线绘制
-def draw_fixtime_curve():
     
-    df=pd.read_excel(path+fullfill_file,sheet_name=0, header=0,index_col=0)
-    goal_xaxis="Coord1"
-    goal_yaxis="c_vx[1]"
-    Tsp=df.idxmin()["v_pressurexx"] #定位时刻，可手动改为 XX (ps)
-    xaxis=df.loc[Tsp,goal_xaxis].values
-    yaxis=df.loc[Tsp,goal_yaxis].values
-    plt.plot(xaxis,yaxis)
-    
-def draw_freesurfaceVelocity():
-    axistime=[]
-    axisvelocity=[]
-    df=pd.read_excel(path+fullfill_file,sheet_name=0)
-    k=df1.shape[0]
-    for i in range(k):
-    if df1.iloc[i,0]>200:
-        axistime.append(df1.iloc[i-1,0])
-        axisvelocity.append(df1.iloc[i-1,8])
-        plt.plot(axitime,axisvelocity)
-        
 #根据需要调用数据处理或者绘图函数        
 def data_processing
     mergespace()
     parse()
     fullfill()
 
-def drawmap    
-    draw_fixtime_curve()
-    draw_freesurfaceVelocity()
