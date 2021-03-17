@@ -15,11 +15,11 @@ def draw_fixtime_curve():
     plt.plot(xaxis,yaxis,color='blue',linewidth=1.5)
     plt.rcParams['xtick.direction'] = 'in'
     plt.rcParams['ytick.direction'] = 'in'
-    #plt.xticks([200,400,600,800,1000])
-    #plt.yticks([0,2,4,6,8],[0,0.2,0.4,0.6,0.8])
-    plt.xlabel("Position (nm)",)
-    plt.ylabel("Velocity Z (km/s)")
-    #plt.savefig() 
+    #plt.xticks([200,400,600,800,1000]，fontproperties = 'Times New Roman', size = 14)
+    #plt.yticks([0,2,4,6,8],[0,0.2,0.4,0.6,0.8]，fontproperties = 'Times New Roman', size = 14)
+    plt.xlabel("Position (nm)",fontdict={'family' : 'Times New Roman', 'size'   : 16})
+    plt.ylabel("Velocity Z (km/s)"，fontdict={'family' : 'Times New Roman', 'size'   : 16})
+    #plt.savefig(r"C:\Users\Youlin Zhu\Desktop\1.tiff"，dpi=600) 
     
     
 def draw_freesurfaceVelocity():
@@ -32,15 +32,13 @@ def draw_freesurfaceVelocity():
         axistime.append(df1.iloc[i-1,0])
         axisvelocity.append(df1.iloc[i-1,8])
         
-    plt.figure(num=1)
-    plt.plot(axistime,axisvelocity)
+    plt.figure(num=2)        
     plt.plot(axistime,axisvelocity,color='purple',linewidth=1.5)
     plt.rcParams['xtick.direction'] = 'in'
     plt.rcParams['ytick.direction'] = 'in'
-    #plt.xticks([200,400,600,800,1000])
-    plt.yticks([0,2,4,6,8],[0,0.2,0.4,0.6,0.8])
-    plt.xlabel("Time (ps)",)
-    plt.ylabel("Velocity Z (km/s)")
-    
-    #plt.savefig()    
+    plt.xticks(fontproperties = 'Times New Roman', size = 14)
+    plt.yticks([0,2,4,6,8,10],[0,0.2,0.4,0.6,0.8,1.0],fontproperties = 'Times New Roman', size = 14)
+    plt.xlabel("Time (ps)",fontdict={'family' : 'Times New Roman', 'size'   : 16})
+    plt.ylabel("Velocity Z (km/s)",fontdict={'family' : 'Times New Roman', 'size'   : 16})
+    plt.savefig(r"C:\Users\Youlin Zhu\Desktop\1.tiff",dpi=600)
     
