@@ -1,16 +1,22 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+
+
 # 变量初始化过程包括路径、变量名
-path="C:/Users/Youlin Zhu/Desktop/" #文件所在目标路径
-input_filename = "pressure.profile" #原始数据文件名
-mergespace_file = "pressure_c.txt"  #合并空格后文件名
-parse_file = "2.xlsx"               #分列后文件名
-fullfill_file="3.xlsx"              #填充后文件名
-extract_file=""
-Vz_extract_file=""
+rootdir=r"D:\Youlin Zhu\2021实验室\分子动力学\数据处理\strainrate"
+list = os.listdir(rootdir)
+for i in range(len(list)):
+    path=os.path.join(rootdir,list[i])
+    input_filename = "pressure.profile" #原始数据文件名
+    mergespace_file = "mergespace.txt"  #合并空格后文件名
+    parse_file = "parse.xlsx"               #分列后文件名
+    fullfill_file="fullfill.xlsx"              #填充后文件名
+    data_processing()
+    drawmap()
+
 
 # 将初始文件首行连续空格转化为一个写入一个新文件mergespace_filename
-import pandas as pd
-import openpyxl as op
-import matplotlib.pyplot as plt
 def mergespace():
     f=open (path+input_filename,"r")
     f1=open(path+mergespace_file,"w")
@@ -25,7 +31,6 @@ def mergespace():
     f1.close()
 
 
-
 #数据按空格分列后转化为数值写入excel,column为表头（第一行）名称
 def parse():
     df = pd.read_csv(path+mergespace_file)
@@ -37,21 +42,15 @@ def parse():
 
 #填充时间，根据步长转化为ps
 def fullfill():
-    wb =op.load_workbook(path+parse_file)
-    ws=wb["Sheet1"]
-    row=ws.max_row
-    for i in range(1,row+1): 
-        if ws.cell(i,1).value is None:
-            if ws.cell(i,2).value==1:
-                ws.cell(i,1).value=ws.cell(i-1,1).value/1000 #除数为：1ps/以fs为单位的步长
+    df=pd.read_excel(path+parse_file,sheetname=0,header=0)
+    k=df.shape[0]
+    for i in range(k):
+        if pd.isna(df.iloc[i,0]):
+            if df.iloc[i,1]==1:
+                df.iloc[i,0]=df.iloc[i-1,0]/1000
             else:
-                ws.cell(i,1).value=ws.cell(i-1,1).value
-            if ws.cell(i+1,2).value is  None:
-                print("数据填充完毕，谢谢")
-                break
-                
-    wb.save(path+fullfill_file)
-
+                df.iloc[i,0]=df.iloc[i-1,0]
+    df.to_excel(path+fullfill_file,index=False,merge_cell=False)
     
  
 #绘图代码:某时刻下参数（应力、温度、冲击方向速度）随切片位置分布的曲线绘制
@@ -74,10 +73,14 @@ def draw_freesurfaceVelocity():
     if df1.iloc[i,0]>200:
         axistime.append(df1.iloc[i-1,0])
         axisvelocity.append(df1.iloc[i-1,8])
-        plt.plot(a,axisvelocity)
+        plt.plot(axitime,axisvelocity)
+        
+#根据需要调用数据处理或者绘图函数        
+def data_processing
+    mergespace()
+    parse()
+    fullfill()
 
-mergespace()
-parse()
-fullfill()
-draw_fixtime_curve()
-draw_freesurfaceVelocity()
+def drawmap    
+    draw_fixtime_curve()
+    draw_freesurfaceVelocity()
