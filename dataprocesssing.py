@@ -7,7 +7,8 @@ import os
 input_filename = "pressure.profile" #原始数据文件名
 mergespace_file = "mergespace.txt"  #合并空格后文件名
 parse_file = "parse.xlsx"           #分列后文件名
-fullfill_file="fullfill.xlsx"       #填充后文件名
+fullfill_file="fullfill.xlsx" 
+cut_file='cut.xlsx'      #填充后文件名
 
 
 # 变量初始化过程包括路径、变量名
@@ -55,14 +56,27 @@ def fullfill():
                 df.iloc[i,0]=df.iloc[i-1,0]/1000
             else:
                 df.iloc[i,0]=df.iloc[i-1,0]
+                
+#删除最后一个切片数据
+def cut_lastbin():                
     df.to_excel(path+'/'+fullfill_file,index=False)  
+    def cut_lastbin():
+    df=pd.read_excel(path+'/'+fullfill_file,header=0)
+    k=df.shape[0]
+    index_to_drop=[]
+    index_to_drop.append(k-1)
+    for i in df.index:
+        if df.iloc[i,0]>200:
+            index_to_drop.append(i-1)
+    df.drop(df.index[index_to_drop],inplace=True)
+    df.to_excel(path+'/'+cut_file,index=False)
 
 #调用数据处理       
 def data_processing():
     mergespace()
     parse()
     fullfill()
-
+    cut_lastbin
 
 #运行主函数，等待收获数据
 main()    
